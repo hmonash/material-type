@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Letterform Lab - v.17</title>
+    <style>
+        /* Base page styling: Cream paper color and a fixed CSS grid background */
+        body { 
+            margin: 0; overflow: hidden; background-color: #f4f1ea; 
+            background-image: 
+                linear-gradient(rgba(180, 160, 140, 0.2) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(180, 160, 140, 0.2) 1px, transparent 1px);
+            background-size: 50px 50px; font-family: 'Times New Roman', serif; touch-action: none; 
+        }
+
+        /* UI Panel: Positioned top-left with a slight paper-like aesthetic */
+        #ui {
+            position: absolute; top: 20px; left: 20px; color: #4a453f; 
+            background: rgba(255, 252, 245, 0.95); padding: 25px; border-radius: 4px; 
+            border: 1px solid #d1ccc0; z-index: 1000; width: 280px;
+            box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.05); box-sizing: border-box; 
+        }
+
+        b { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #2a2825; display: block; margin-bottom: 10px; border-bottom: 1px solid #d1ccc0; padding-bottom: 5px; }
+
+        /* UI Element styling: Clean, minimalist inputs */
+        input, select, button { 
+            width: 100%; padding: 10px; background: #fff; color: #4a453f; 
+            border: 1px solid #c8c3b9; border-radius: 2px; margin: 8px 0; 
+            font-family: inherit; box-sizing: border-box; outline: none;
+        }
+
+        button { 
+            background: #4a453f; color: #f4f1ea; border: none; cursor: pointer; 
+            text-transform: uppercase; font-size: 11px; letter-spacing: 1px; margin-top: 15px;
+        }
+        button:hover { background: #2a2825; }
+
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin: 10px 0; font-size: 13px; }
+        label { font-size: 11px; color: #8c867a; text-transform: uppercase; margin-top: 8px; display: block;}
+        
+        #animSettings { border-top: 1px dashed #d1ccc0; margin-top: 10px; padding-top: 10px; }
+        .hint { font-size: 11px; color: #a19b8f; margin-top: 15px; line-height: 1.4; border-top: 1px solid #eee; padding-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <b>Material Type Lab</b>
+        <input type="text" id="wordInput" placeholder="Enter Text..." autocomplete="off">
+        
+        <label>Spacing</label>
+        <input type="range" id="spacingInput" min="50" max="300" value="115">
+
+        <select id="matSelect">
+            <option value="felt">Material: Felt</option>
+            <option value="glass">Material: Glass</option>
+            <option value="stone">Material: Stone</option>
+        </select>
+
+        <div class="toggle-row">
+            <span>Enable Animation</span>
+            <input type="checkbox" id="animCheck">
+        </div>
+        
+        <div id="animSettings" style="display:none;">
+            <label>Mode</label>
+            <select id="animMode">
+                <option value="spin">Individual Spin</option>
+                <option value="wave">Fluid Wave</option>
+                <option value="bounce">Step Bounce</option>
+                <option value="circle">Carousel Orbit</option>
+                <option value="groupSpin">Group Axis Spin</option>
+            </select>
+            <label>Motion Speed</label>
+            <input type="range" id="animSpeed" min="0.1" max="5" step="0.1" value="1">
+        </div>
+
+        <div id="lightSettings">
+            <label>Light Color</label>
+            <input type="color" id="lightColor" value="#ffffff" style="height:35px; padding:2px; cursor:pointer;">
+            <label>Brightness</label>
+            <input type="range" id="lightIntensity" min="1" max="30" value="10">
+        </div>
+
+        <button id="resetBtn">Reset</button>
+        
+        <div class="hint">
+             </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- SCENE SETUP ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
+        const defaultCamPos = new THREE.Vector3(0, 200, 700);
+        camera.position.copy(defaultCamPos);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // --- CAMERA CONTROLS ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        // Mapping gestures: 1-finger is reserved for light, 2-finger/right-click for rotation
+        controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+        controls.touches = { ONE: null, TWO: THREE.TOUCH.ROTATE };
+
+        // --- LIGHTING ---
+        scene.add(new THREE.AmbientLight(0xffffff, 0.4)); 
+
+        const pointLight = new THREE.PointLight(0xffffff, 1, 0, 1.2);
+        pointLight.position.set(0, 300, 200);
+        scene.add(pointLight);
+
+        // Light indicator geometry: Radius 6 as requested
+        const lightGroup = new THREE.Group();
+        const lightBulb = new THREE.Mesh(new THREE.SphereGeometry(6, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+        const lightOutline = new THREE.Mesh(new THREE.SphereGeometry(7.5, 32, 32), new THREE.MeshBasicMaterial({ color: 0x4a453f, side: THREE.BackSide }));
+        lightGroup.add(lightBulb, lightOutline);
+        lightGroup.position.copy(pointLight.position);
+        scene.add(lightGroup);
+
+        // --- LIGHT DRAG LOGIC ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isDraggingLight = false;
+        const dragPlane = new THREE.Plane();
+        const intersection = new THREE.Vector3();
+
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            
+            if (raycaster.intersectObjects(lightGroup.children).length > 0) {
+                isDraggingLight = true;
+                controls.enabled = false;
+                const normal = new THREE.Vector3().copy(camera.position).sub(controls.target).normalize();
+                dragPlane.setFromNormalAndCoplanarPoint(normal, lightGroup.position);
+            }
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (!isDraggingLight) return;
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            if (raycaster.ray.intersectPlane(dragPlane, intersection)) {
+                lightGroup.position.copy(intersection);
+                pointLight.position.copy(intersection);
+            }
+        });
+
+        window.addEventListener('pointerup', () => { isDraggingLight = false; controls.enabled = true; });
+
+        // --- TYPE & MATERIAL GENERATION ---
+        const wordContainer = new THREE.Group();
+        scene.add(wordContainer);
+        const loader = new STLLoader();
+        let clock = new THREE.Clock();
+
+        const materials = {
+            felt: new THREE.MeshStandardMaterial({ color: 0x8c867a, roughness: 1 }),
+            glass: new THREE.MeshPhysicalMaterial({ transmission: 0.9, thickness: 15, roughness: 0.05 }),
+            stone: new THREE.MeshStandardMaterial({ color: 0x5a564e, metalness: 0.2, roughness: 0.8 })
+        };
+
+        const updateTypography = () => {
+            wordContainer.clear();
+            wordContainer.rotation.set(0,0,0);
+            const text = document.getElementById('wordInput').value.toUpperCase();
+            const matKey = document.getElementById('matSelect').value;
+            const spacing = parseFloat(document.getElementById('spacingInput').value);
+            
+            for (let i = 0; i < text.length; i++) {
+                const group = new THREE.Group();
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(60, 90, 30), materials[matKey]);
+                group.position.x = i * spacing;
+                group.add(mesh);
+                wordContainer.add(group);
+
+                loader.load(`./felt-${text[i]}.stl`, (geo) => {
+                    geo.center(); 
+                    mesh.geometry = geo; 
+                    mesh.rotation.x = -Math.PI/2;
+                });
+            }
+            const box = new THREE.Box3().setFromObject(wordContainer);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            wordContainer.children.forEach(c => c.position.x -= center.x);
+        };
+
+        document.getElementById('wordInput').oninput = updateTypography;
+        document.getElementById('spacingInput').oninput = updateTypography;
+        document.getElementById('matSelect').onchange = updateTypography;
+        document.getElementById('animCheck').onchange = (e) => {
+            document.getElementById('animSettings').style.display = e.target.checked ? 'block' : 'none';
+        };
+
+        document.getElementById('resetBtn').onclick = () => {
+            camera.position.copy(defaultCamPos);
+            controls.target.set(0,0,0);
+            document.getElementById('wordInput').value = '';
+            document.getElementById('spacingInput').value = 115;
+            document.getElementById('lightIntensity').value = 10;
+            wordContainer.clear();
+        };
+
+        // --- ANIMATION LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            
+            const col = document.getElementById('lightColor').value;
+            pointLight.color.set(col);
+            lightBulb.material.color.set(col);
+            pointLight.intensity = document.getElementById('lightIntensity').value * 1200;
+
+            if (document.getElementById('animCheck').checked && wordContainer.children.length > 0) {
+                const speed = parseFloat(document.getElementById('animSpeed').value);
+                const mode = document.getElementById('animMode').value;
+                const spacing = parseFloat(document.getElementById('spacingInput').value);
+                
+                wordContainer.children.forEach((group, i) => {
+                    const mesh = group.children[0];
+                    if (mode !== 'circle') {
+                        group.position.x = (i * spacing) - ((wordContainer.children.length-1) * spacing / 2);
+                        group.position.z = 0;
+                    }
+
+                    switch(mode) {
+                        case 'spin': 
+                            group.rotation.y = time * speed * 3;
+                            group.position.y = 0;
+                            break;
+                        case 'wave': 
+                            group.position.y = Math.sin(time * speed * 3 + i) * 50;
+                            group.rotation.y = 0;
+                            break;
+                        case 'bounce': 
+                            group.position.y = Math.abs(Math.sin(time * speed * 2 + i * 0.5)) * 100;
+                            group.rotation.y = 0;
+                            break;
+                        case 'circle': 
+                            const radius = 250;
+                            group.position.x = Math.cos(time * speed + i) * radius;
+                            group.position.z = Math.sin(time * speed + i) * radius;
+                            group.rotation.y = -time * speed - i + Math.PI/2;
+                            group.position.y = 0;
+                            break;
+                        case 'groupSpin': 
+                            wordContainer.rotation.y += 0.005 * speed;
+                            group.position.y = 0;
+                            group.rotation.y = 0;
+                            break;
+                    }
+                });
+            } else {
+                wordContainer.children.forEach(c => {
+                    c.position.y = 0;
+                    c.rotation.y = 0;
+                });
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
