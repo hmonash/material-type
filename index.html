@@ -42,6 +42,10 @@
         #animSettings { border-top: 1px dashed #d1ccc0; margin-top: 10px; padding-top: 10px; }
         .hint { font-size: 11px; color: #a19b8f; margin-top: 15px; line-height: 1.4; border-top: 1px solid #eee; padding-top: 10px; }
 
+        /* Collapsed state styling */
+        #ui.collapsed #uiContent { display: none; }
+        #ui.collapsed { width: auto; padding-bottom: 15px; }
+
         @media (max-width: 600px) {
             #ui {
                 top: auto;
@@ -52,6 +56,14 @@
                 max-height: 45vh;
                 overflow-y: auto;
                 box-shadow: 0px -5px 15px rgba(0, 0, 0, 0.1);
+                background: #fffcf5; /* Ensure light background */
+                transition: max-height 0.3s ease;
+            }
+            #ui.collapsed {
+                width: 100%;
+                height: auto;
+                max-height: 60px; /* Only show header */
+                overflow: hidden;
             }
         }
     </style>
@@ -59,48 +71,62 @@
 <body>
 
     <div id="ui">
-        <b>Material Type Lab</b>
-        <input type="text" id="wordInput" placeholder="Enter Text..." autocomplete="off">
-        
-        <label>Spacing</label>
-        <input type="range" id="spacingInput" min="50" max="300" value="115">
-
-        <select id="matSelect">
-            <option value="felt">Material: Felt</option>
-            <option value="glass">Material: Glass</option>
-            <option value="stone">Material: Stone</option>
-        </select>
-
-        <div class="toggle-row">
-            <span>Enable Animation</span>
-            <input type="checkbox" id="animCheck">
+        <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" id="uiHeader">
+            <b style="border-bottom: none; margin-bottom: 0;">Material Type Lab</b>
+            <span id="toggleIcon" style="font-size: 18px; font-weight: bold;">−</span>
         </div>
-        
-        <div id="animSettings" style="display:none;">
-            <label>Mode</label>
-            <select id="animMode">
-                <option value="spin">Individual Spin</option>
-                <option value="wave">Fluid Wave</option>
-                <option value="bounce">Step Bounce</option>
-                <option value="circle">Carousel Orbit</option>
-                <option value="groupSpin">Group Axis Spin</option>
+        <div id="uiContent" style="margin-top: 15px; border-top: 1px solid #d1ccc0; padding-top: 10px;">
+            <input type="text" id="wordInput" placeholder="Enter Text..." autocomplete="off">
+            
+            <label>Spacing</label>
+            <input type="range" id="spacingInput" min="50" max="300" value="115">
+
+            <select id="matSelect">
+                <option value="felt">Material: Felt</option>
+                <option value="glass">Material: Glass</option>
+                <option value="stone">Material: Stone</option>
             </select>
-            <label>Motion Speed</label>
-            <input type="range" id="animSpeed" min="0.1" max="5" step="0.1" value="1">
-        </div>
 
-        <div id="lightSettings">
-            <label>Light Color</label>
-            <input type="color" id="lightColor" value="#ffffff" style="height:35px; padding:2px; cursor:pointer;">
-            <label>Brightness</label>
-            <input type="range" id="lightIntensity" min="1" max="30" value="10">
-        </div>
+            <div class="toggle-row">
+                <span>Enable Animation</span>
+                <input type="checkbox" id="animCheck">
+            </div>
+            
+            <div id="animSettings" style="display:none;">
+                <label>Mode</label>
+                <select id="animMode">
+                    <option value="spin">Individual Spin</option>
+                    <option value="wave">Fluid Wave</option>
+                    <option value="bounce">Step Bounce</option>
+                    <option value="circle">Carousel Orbit</option>
+                    <option value="groupSpin">Group Axis Spin</option>
+                </select>
+                <label>Motion Speed</label>
+                <input type="range" id="animSpeed" min="0.1" max="5" step="0.1" value="1">
+            </div>
 
-        <button id="resetBtn">Reset</button>
-        
-        <div class="hint">
-             </div>
+            <div id="lightSettings">
+                <label>Light Color</label>
+                <input type="color" id="lightColor" value="#ffffff" style="height:35px; padding:2px; cursor:pointer;">
+                <label>Brightness</label>
+                <input type="range" id="lightIntensity" min="1" max="30" value="10">
+            </div>
+
+            <button id="resetBtn">Reset</button>
+            
+            <div class="hint">
+                 </div>
+        </div>
     </div>
+
+    <script>
+        document.getElementById('uiHeader').addEventListener('click', () => {
+            const ui = document.getElementById('ui');
+            ui.classList.toggle('collapsed');
+            const icon = document.getElementById('toggleIcon');
+            icon.textContent = ui.classList.contains('collapsed') ? '+' : '−';
+        });
+    </script>
 
     <script type="importmap">
         {
