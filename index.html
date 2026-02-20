@@ -41,6 +41,19 @@
         
         #animSettings { border-top: 1px dashed #d1ccc0; margin-top: 10px; padding-top: 10px; }
         .hint { font-size: 11px; color: #a19b8f; margin-top: 15px; line-height: 1.4; border-top: 1px solid #eee; padding-top: 10px; }
+
+        @media (max-width: 600px) {
+            #ui {
+                top: auto;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                border-radius: 12px 12px 0 0;
+                max-height: 45vh;
+                overflow-y: auto;
+                box-shadow: 0px -5px 15px rgba(0, 0, 0, 0.1);
+            }
+        }
     </style>
 </head>
 <body>
