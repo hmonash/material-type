@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Type Lab - v20</title>
+    <title>3D Type Lab - v23</title>
     <style>
         :root { --bg: #f4f1ea; --ui: rgba(255, 252, 245, 0.98); --accent: #d1ccc0; --text: #4a453f; }
         body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Times New Roman', serif; }
@@ -54,7 +54,7 @@
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
-        camera.position.set(0, 200, 700);
+        camera.position.set(0, 150, 600);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -64,8 +64,8 @@
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
 
-        scene.add(new THREE.AmbientLight(0xffffff, 0.9));
-        const p1 = new THREE.PointLight(0xffffff, 1.5); p1.position.set(300, 500, 400); scene.add(p1);
+        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+        const p1 = new THREE.PointLight(0xffffff, 2); p1.position.set(200, 400, 300); scene.add(p1);
 
         const wordGroup = new THREE.Group();
         scene.add(wordGroup);
@@ -73,15 +73,14 @@
         const mats = {
             felt: new THREE.MeshStandardMaterial({ color: 0x8c867a, roughness: 1 }),
             glass: new THREE.MeshPhysicalMaterial({
-                color: 0x88ccff, metalness: 0, roughness: 0.1,
-                transmission: 0.8, thickness: 5, ior: 1.5,
-                transparent: true, opacity: 0.9,
-                side: THREE.DoubleSide
+                color: 0xccddff, metalness: 0, roughness: 0.02,
+                transmission: 0.95, thickness: 10, ior: 1.5,
+                transparent: true, opacity: 0.95, side: THREE.DoubleSide
             })
         };
 
         const loaders = { stl: new STLLoader(), fbx: new FBXLoader() };
-        const TARGET_HEIGHT = 150; // Larger to be safer
+        const TARGET_HEIGHT = 150; 
 
         function centerWord() {
             const b = new THREE.Box3().setFromObject(wordGroup);
@@ -97,7 +96,7 @@
 
             wordGroup.clear();
             wordGroup.position.set(0,0,0);
-            status.innerText = "Attempting to load...";
+            status.innerText = "Loading...";
 
             for (let i = 0; i < text.length; i++) {
                 const char = text[i];
@@ -106,26 +105,27 @@
                 wordGroup.add(charGroup);
 
                 const indicator = new THREE.Mesh(
-                    new THREE.BoxGeometry(30, 30, 30),
+                    new THREE.BoxGeometry(20, 20, 20),
                     new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true })
                 );
                 charGroup.add(indicator);
 
                 const path = mat === 'glass' ? `./glass-${char.toLowerCase()}.fbx` : `./felt-${char}.stl`;
-                status.innerText = `Loading: ${path}...`;
 
                 try {
                     if (mat === 'glass') {
                         const fbx = await new Promise((res, rej) => loaders.fbx.load(path, res, undefined, rej));
                         fbx.traverse(c => { if (c.isMesh) c.material = mats.glass; });
                         
-                        // Force update matrix and get box
+                        // No manual rotation - using file orientation!
+                        fbx.updateMatrixWorld(true);
+                        
                         const b = new THREE.Box3().setFromObject(fbx);
                         const s = new THREE.Vector3(); b.getSize(s);
-                        const scaleFactor = TARGET_HEIGHT / Math.max(s.y, 0.1);
+                        
+                        const scaleFactor = TARGET_HEIGHT / Math.max(s.y, 1);
                         fbx.scale.setScalar(scaleFactor);
                         
-                        // Centering logic
                         const b2 = new THREE.Box3().setFromObject(fbx);
                         const c2 = new THREE.Vector3(); b2.getCenter(c2);
                         fbx.position.sub(c2);
@@ -137,17 +137,19 @@
                         const mesh = new THREE.Mesh(geo, mats.felt);
                         geo.computeBoundingBox();
                         const s = new THREE.Vector3(); geo.boundingBox.getSize(s);
-                        mesh.scale.setScalar(TARGET_HEIGHT / Math.max(s.y, 0.1));
+                        mesh.scale.setScalar(TARGET_HEIGHT / Math.max(s.y, 1));
+                        
+                        // Centering the mesh
                         geo.center();
-                        mesh.rotation.x = -Math.PI/2;
+                        // No manual rotation for STL either!
+                        
                         charGroup.remove(indicator);
                         charGroup.add(mesh);
                     }
                     centerWord();
-                    status.innerText = "Success.";
+                    status.innerText = "Updated.";
                 } catch (e) {
-                    console.error("Error loading file:", e);
-                    status.innerText = `FAIL: ${path}`;
+                    status.innerText = `Fail: ${char}`;
                     indicator.material.color.set(0xff0000);
                 }
             }
